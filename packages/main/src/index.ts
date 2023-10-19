@@ -2,6 +2,9 @@ import {app} from 'electron';
 import './security-restrictions';
 import {restoreOrCreateWindow} from '/@/mainWindow';
 import {platform} from 'node:process';
+import {ipcMain} from 'electron';
+import {create_missing_tables, updateNotesInDB} from '../helpers/databaseMethods';
+import {setupNoteSageDirectory, watchNotesDirectoryForChanges} from '../helpers/fileManager';
 
 /**
  * Prevent electron from running multiple instances.
@@ -19,7 +22,7 @@ app.on('second-instance', restoreOrCreateWindow);
 app.disableHardwareAcceleration();
 
 /**
- * Shout down background process if all windows was closed
+ * Shut down background process if all windows was closed
  */
 app.on('window-all-closed', () => {
   if (platform !== 'darwin') {
@@ -84,3 +87,21 @@ if (import.meta.env.PROD) {
     )
     .catch(e => console.error('Failed check and install updates:', e));
 }
+
+// Set up database connection and tables
+setupNoteSageDirectory();
+
+const db = require('better-sqlite3')('./packages/database.db');
+
+create_missing_tables();
+
+updateNotesInDB();
+watchNotesDirectoryForChanges();
+
+// Handles invoke for running query
+ipcMain.handle('run/sql', async (event, args) => {
+  const sql = args;
+
+  const rows = db.prepare(sql).all();
+  return rows;
+});

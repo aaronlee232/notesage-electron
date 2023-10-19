@@ -27,7 +27,9 @@
     "typecheck:renderer": "tsc --noEmit -p packages/renderer/tsconfig.json",
     "typecheck": "npm run typecheck:main && npm run typecheck:preload && npm run typecheck:renderer",
     "postinstall": "cross-env ELECTRON_RUN_AS_NODE=1 electron scripts/update-electron-vendors.mjs",
-    "format": "npx prettier --write \"**/*.{js,mjs,cjs,ts,mts,cts,json}\""
+    "format": "npx prettier --write \"**/*.{js,mjs,cjs,ts,mts,cts,json}\"",
+    "rebuild": "electron-rebuild -f -w better-sqlite3",
+    "postinstall2": "electron-builder install-app-deps"
   },
   "devDependencies": {
     "@types/node": "18.18.5",
@@ -48,9 +50,29 @@
     "vitest": "0.34.6"
   },
   "dependencies": {
+    "@types/better-sqlite3": "^7.6.5",
+    "@types/common-tags": "^1.8.2",
+    "@types/uuid": "^9.0.5",
     "@vitejs/plugin-react": "^4.1.0",
+    "@xenova/transformers": "^2.6.2",
+    "better-sqlite3": "^9.0.0",
+    "common-tags": "^1.8.2",
+    "dayjs": "^1.11.10",
+    "electron-rebuild": "^3.2.9",
     "electron-updater": "6.1.4",
+    "gpt-3-encoder": "^1.1.4",
+    "gray-matter": "^4.0.3",
+    "mdast": "^3.0.0",
+    "mdast-util-from-markdown": "^2.0.0",
+    "mdast-util-to-markdown": "^2.1.0",
+    "mdast-util-to-string": "^4.0.0",
+    "openai": "^4.12.1",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "slugify": "^1.6.6",
+    "sqlite3": "^5.1.6",
+    "unist-builder": "^4.0.0",
+    "unist-util-filter": "^5.0.1",
+    "uuid": "^9.0.1"
   }
 }

@@ -120,7 +120,7 @@ app.on('web-contents-created', (_, contents) => {
     delete webPreferences.preloadURL;
 
     // Disable Node.js integration
-    webPreferences.nodeIntegration = false;
+    webPreferences.nodeIntegration = true;
 
     // Enable contextIsolation
     webPreferences.contextIsolation = true;
