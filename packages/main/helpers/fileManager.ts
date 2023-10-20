@@ -2,7 +2,7 @@ import {readdir} from 'node:fs/promises';
 import {app} from 'electron';
 import {formatDate} from './utilMethods';
 import type {FileObject, NotesMetaData, ParsedFile} from 'types/main';
-import {updateNotesInDB} from './databaseMethods';
+import {processNoteFiles} from './databaseMethods';
 
 const matter = require('gray-matter');
 const fs = require('fs');
@@ -161,6 +161,6 @@ export async function getAllNoteFileObjects(): Promise<FileObject[]> {
  */
 export async function watchNotesDirectoryForChanges() {
   fs.watch(notesPath, {recursive: true}, () => {
-    updateNotesInDB();
+    processNoteFiles();
   });
 }

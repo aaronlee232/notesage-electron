@@ -9,9 +9,23 @@
 import {contextBridge, ipcRenderer} from 'electron';
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  getQueryResponse: async (sql: string) => {
-    const response = await ipcRenderer.invoke('run/sql', sql);
-    return response;
+  // getQueryResponse: async (sql: string) => {
+  //   const response = await ipcRenderer.invoke('run/sql', sql);
+  //   return response;
+  // },
+
+  sendUserQuery: async (chatId: string, userQuery: string, model: string) => {
+    ipcRenderer.invoke('query', {chatId, userQuery, model});
+  },
+
+  createNewChat: async () => {
+    const chatId = await ipcRenderer.invoke('create/chat');
+    return chatId;
+  },
+
+  getChatMessages: async (chatId: string) => {
+    const messages = await ipcRenderer.invoke('get/chat-messages', chatId);
+    return messages;
   },
 
   // rendererToMain: (message: string) => ipcRenderer.send('greet', message),

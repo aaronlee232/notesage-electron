@@ -3,8 +3,13 @@ import './security-restrictions';
 import {restoreOrCreateWindow} from '/@/mainWindow';
 import {platform} from 'node:process';
 import {ipcMain} from 'electron';
-import {create_missing_tables, updateNotesInDB} from '../helpers/databaseMethods';
+import {
+  create_missing_tables,
+  getAllChatMessages,
+  processNoteFiles,
+} from '../helpers/databaseMethods';
 import {setupNoteSageDirectory, watchNotesDirectoryForChanges} from '../helpers/fileManager';
+import {createChat, sendUserQuery} from '../helpers/chatMethods';
 
 /**
  * Prevent electron from running multiple instances.
@@ -88,20 +93,31 @@ if (import.meta.env.PROD) {
     .catch(e => console.error('Failed check and install updates:', e));
 }
 
+// Configure Environment Variables
+
 // Set up database connection and tables
-setupNoteSageDirectory();
-
-const db = require('better-sqlite3')('./packages/database.db');
-
 create_missing_tables();
-
-updateNotesInDB();
+setupNoteSageDirectory();
+processNoteFiles();
 watchNotesDirectoryForChanges();
 
-// Handles invoke for running query
-ipcMain.handle('run/sql', async (event, args) => {
-  const sql = args;
-
-  const rows = db.prepare(sql).all();
-  return rows;
+// Handles invoke for responding to userQuery
+ipcMain.handle('query', async (_event, args) => {
+  const {chatId, userQuery, model} = args;
+  sendUserQuery(chatId, userQuery, model);
 });
+
+// Handles invoke for creating a new chat
+ipcMain.handle('create/chat', async (_event, _args) => {
+  const chatId = await createChat();
+  return chatId;
+});
+
+// Handles invoke for retrieving chat history
+ipcMain.handle('get/chat-messages', async (_event, args) => {
+  const chatId = args;
+  const messages = await getAllChatMessages(chatId);
+  return messages;
+});
+
+// TODO: When change detected in messages, Send event from main to renderer with chat history of message chatId attatched

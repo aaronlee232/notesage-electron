@@ -1,15 +1,14 @@
 import React, {useState} from 'react';
-import {getQueryResponse} from '../helpers/ipcMethod';
+import {createNewChat, getChatMessages, sendUserQuery} from '../helpers/ipcMethod';
+import type {Message} from '../types/renderer';
 
 //sample code for testing
 const App = () => {
-  const [message, setMessage] = useState('SELECT * FROM test');
-  const [response, setResponse] = useState();
+  const [activeChatId, setActiveChatId] = useState<string>('');
+  const [query, setQuery] = useState('');
+  const [chatHistory, setChatHistory] = useState<Message[]>([]);
 
-  async function send(sql: any) {
-    const response = await getQueryResponse(sql);
-    setResponse(response);
-  }
+  const model = 'gpt-3.5-turbo';
 
   return (
     <div className="App">
@@ -17,24 +16,45 @@ const App = () => {
         <h1>Standalone application with Electron, React, and SQLite stack.</h1>
       </header>
       <article>
-        <p>
-          Say <i>ping</i> to the main process.
-        </p>
+        <button
+          type="button"
+          onClick={async () => {
+            const chatId = await createNewChat();
+            setActiveChatId(chatId);
+          }}
+        >
+          Create new Chat
+        </button>
+        <p>{activeChatId}</p>
+        <br />
+        <p>Send a query to NoteSage AI</p>
         <input
           type="text"
-          value={message}
-          onChange={({target: {value}}) => setMessage(value)}
+          value={query}
+          onChange={({target: {value}}) => setQuery(value)}
         />
         <button
           type="button"
-          onClick={() => send(message)}
+          onClick={() => sendUserQuery(activeChatId, query, model)}
         >
           Send
         </button>
-        <br />
-        <p>Main process responses:</p>
-        <br />
-        <pre>{(response && JSON.stringify(response, null, 2)) || 'No query results yet!'}</pre>
+        <button
+          type="button"
+          onClick={async () => {
+            setChatHistory(await getChatMessages(activeChatId));
+          }}
+        >
+          View Chat History
+        </button>
+
+        {chatHistory.map(message => {
+          return (
+            <p key={message.id}>
+              {message.role}: {message.content}
+            </p>
+          );
+        })}
       </article>
     </div>
   );

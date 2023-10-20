@@ -1,3 +1,5 @@
+import {Tag, Message, Chat} from '../../../types/shared';
+
 export type ParsedFile = {
   data: any;
   content: string;
@@ -41,11 +43,6 @@ export type PageSection = {
   tokenCount: number;
 };
 
-export type Tag = {
-  id: string;
-  name: string;
-};
-
 export type PageTag = {
   id: string;
   pageId: string;
@@ -58,3 +55,5 @@ export type PageData = {
   tags: Tag[];
   pageTags: PageTag[];
 };
+
+export {Tag, Message, Chat};
