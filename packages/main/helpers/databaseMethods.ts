@@ -447,12 +447,9 @@ function getFilteredPageSections(tags: Tag[]) {
  * @returns {Promise<PageSection[]>} - A promise that resolves to an array of page sections that match the provided tags, or all page sections if no tags are provided.
  */
 export async function getPageSections(tags: Tag[]) {
-  console.log(tags);
   if (tags.length > 0) {
-    console.log('filtered page sections context');
     return getFilteredPageSections(tags);
   } else {
-    console.log('no filter page sections context');
     return getAllPageSections();
   }
 }

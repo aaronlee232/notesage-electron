@@ -12,6 +12,7 @@ import {
   isPageModified,
   removePage,
 } from './databaseMethods';
+import {configureOpenAi} from './openaiMethods';
 
 const matter = require('gray-matter');
 const fs = require('fs');
@@ -22,6 +23,7 @@ const slugify = require('slugify');
 const documentsPath = app.getPath('documents');
 const notesagePath = path.join(documentsPath, 'NoteSage');
 const notesPath = path.join(notesagePath, 'notes');
+const configPath = path.join(notesagePath, 'config');
 
 /**
  * Sets up the NoteSage directory. If the top level NoteSage directory or the notes directory doesn't exist, it creates them.
@@ -37,6 +39,10 @@ export function setupNoteSageDirectory() {
   // If notes directory doesn't exist, create it
   if (!fs.existsSync(notesPath)) {
     fs.mkdirSync(notesPath);
+  }
+
+  if (!fs.existsSync(configPath)) {
+    fs.mkdirSync(configPath);
   }
 }
 
@@ -229,4 +235,46 @@ export async function watchNotesDirectoryForChanges() {
   fs.watch(notesPath, {recursive: true}, () => {
     processNoteFiles();
   });
+}
+
+/**
+ * Asynchronously creates a configuration file for OpenAI key.
+ * The file is created in the path specified by 'configPath'.
+ * If the file already exists, this function does nothing.
+ *
+ * @async
+ * @function createOpenAIKeyConfig
+ * @throws {Error} If there is any error in creating the file.
+ * @returns {Promise<void>} A promise that resolves when the file has been successfully created.
+ */
+export async function createOpenAIKeyConfig() {
+  await fsp.appendFile(path.join(configPath, 'openai_key.txt'), '');
+}
+
+/**
+ * Asynchronously reads the OpenAI API key from a file and configures OpenAI with it.
+ *
+ * @async
+ * @function readOpenAIAPIKey
+ * @returns {Promise<string>} A promise that resolves to the OpenAI API key.
+ * @throws {Error} If there is any error in reading the file.
+ */
+export async function readOpenAIAPIKey() {
+  const openaiKey = await fsp.readFile(path.join(configPath, 'openai_key.txt'), 'utf-8');
+  configureOpenAi(openaiKey);
+  return openaiKey;
+}
+
+/**
+ * Writes the provided OpenAI API key to a file.
+ *
+ * @async
+ * @export
+ * @function
+ * @param {string} openaiKey - The OpenAI API key to write.
+ * @returns {Promise<void>} A promise that resolves when the file has been written.
+ * @throws {Error} If there's an error writing the file.
+ */
+export async function writeOpenAIAPIKey(openaiKey: string) {
+  await fsp.writeFile(path.join(configPath, 'openai_key.txt'), openaiKey);
 }

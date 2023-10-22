@@ -10,12 +10,15 @@ import {
   getTags,
 } from '../helpers/databaseMethods';
 import {
+  createOpenAIKeyConfig,
   processNoteFiles,
+  readOpenAIAPIKey,
   setupNoteSageDirectory,
   watchNotesDirectoryForChanges,
+  writeOpenAIAPIKey,
 } from '../helpers/fileManager';
 import {createChat, sendUserQuery} from '../helpers/chatMethods';
-import {getModelsIds} from '../helpers/openaiMethods';
+import {getModelsIds, isOpenAIKeyValid} from '../helpers/openaiMethods';
 
 /**
  * Prevent electron from running multiple instances.
@@ -107,6 +110,7 @@ app
     setupNoteSageDirectory();
     processNoteFiles();
     watchNotesDirectoryForChanges();
+    createOpenAIKeyConfig();
   })
   .catch(e => console.error('Failed initialization of DB and directory:', e));
 
@@ -148,6 +152,25 @@ app
     ipcMain.handle('get/models', async (_event, _args) => {
       const modelIds = await getModelsIds();
       return modelIds;
+    });
+
+    // Handles invoke for reading in openai key and configuring openai
+    ipcMain.handle('get/openai-key', async (_event, _args) => {
+      const openaiKey = await readOpenAIAPIKey();
+      return openaiKey;
+    });
+
+    // Handles invoke for writing openai key to a config file
+    ipcMain.handle('write/openai-key', async (_event, args) => {
+      const openaiKey = args;
+      await writeOpenAIAPIKey(openaiKey);
+    });
+
+    // Handles invoke for verifying if openai key is valid
+    ipcMain.handle('verify/openai-key', async (_event, args) => {
+      const openaiKey = args;
+      const isValid = await isOpenAIKeyValid(openaiKey);
+      return isValid;
     });
   })
   .catch(e => console.error('Failed ipcMain functions setup:', e));

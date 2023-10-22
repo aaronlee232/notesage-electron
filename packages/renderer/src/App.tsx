@@ -5,8 +5,11 @@ import {
   getModelIds,
   getMostRecentChat,
   getTags,
+  isOpenAIKeyValid,
   listenToDBNotification,
+  readOpenAIAPIKey,
   sendUserQuery,
+  writeOpenAIAPIKey,
 } from '../helpers/ipcMethod';
 import type {Message, Tag} from '../types/renderer';
 
@@ -17,14 +20,10 @@ const App = () => {
   const [tags, setTags] = useState<Tag[]>([]);
   const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
   const [chatHistory, setChatHistory] = useState<Message[]>([]);
-  const [ModelIds, setModelIds] = useState<string[]>([]);
+  const [modelIds, setModelIds] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>('gpt-3.5-turbo');
-
-  useEffect(() => {
-    (async () => {
-      setModelIds(await getModelIds());
-    })();
-  }, []);
+  const [inputOpenaiKey, setInputOpenaiKey] = useState<string>('');
+  const [isOpenAiConfigured, setIsOpenAiConfigured] = useState(false);
 
   async function handleDBChanges(tableName: string) {
     if (tableName == 'message') {
@@ -45,11 +44,22 @@ const App = () => {
       if (chat == undefined) {
         chat = await createNewChat();
       }
-      await setActiveChatId(chat.id);
+      setActiveChatId(chat.id);
+      setTags(await getTags());
 
-      await setTags(await getTags());
+      const key = await readOpenAIAPIKey();
+      const isAPIKeyValid = await isOpenAIKeyValid(key);
+      setIsOpenAiConfigured(isAPIKeyValid);
     })();
   }, []);
+
+  useEffect(() => {
+    (async () => {
+      if (isOpenAiConfigured == true) {
+        setModelIds(await getModelIds());
+      }
+    })();
+  }, [isOpenAiConfigured]);
 
   // Update db change handler whenever activeChatId changes
   useEffect(() => {
@@ -62,6 +72,27 @@ const App = () => {
         <h1>NoteSage AI</h1>
       </header>
       <article>
+        {isOpenAiConfigured ? <p>Valid OpenAI key</p> : <p>Missing or invalid OpenAI key</p>}
+        <input
+          type="text"
+          value={inputOpenaiKey}
+          onChange={({target: {value}}) => setInputOpenaiKey(value)}
+        />
+        <button
+          type="button"
+          onClick={async () => {
+            await writeOpenAIAPIKey(inputOpenaiKey);
+
+            const key = await readOpenAIAPIKey();
+            const isAPIKeyValid = await isOpenAIKeyValid(key);
+            setIsOpenAiConfigured(isAPIKeyValid);
+          }}
+        >
+          Save OpenAI Key
+        </button>
+
+        <br />
+
         <button
           type="button"
           onClick={async () => {
@@ -91,47 +122,51 @@ const App = () => {
         <br />
 
         <p>Selected Tags</p>
-        {selectedTags && selectedTags.map(tag => <p>{tag.name}</p>)}
+        {selectedTags && selectedTags.map(tag => <p key={tag.id}>{tag.name}</p>)}
         <br />
 
-        <p>Select Model</p>
-        <p>Selected Model: {selectedModel}</p>
-        {ModelIds &&
-          ModelIds.map(modelId => {
-            return (
-              <button
-                key={modelId}
-                onClick={() => {
-                  setSelectedModel(modelId);
-                }}
-              >
-                {modelId}
-              </button>
-            );
-          })}
+        {isOpenAiConfigured && (
+          <div>
+            <p>Select Model</p>
+            <p>Selected Model: {selectedModel}</p>
+            {modelIds &&
+              modelIds.map(modelId => {
+                return (
+                  <button
+                    key={modelId}
+                    onClick={() => {
+                      setSelectedModel(modelId);
+                    }}
+                  >
+                    {modelId}
+                  </button>
+                );
+              })}
 
-        <p>Send a query to NoteSage AI</p>
-        <input
-          type="text"
-          value={query}
-          onChange={({target: {value}}) => setQuery(value)}
-        />
-        <button
-          type="button"
-          onClick={() => {
-            sendUserQuery(activeChatId, query, selectedModel, selectedTags);
-          }}
-        >
-          Send
-        </button>
+            <p>Send a query to NoteSage AI</p>
+            <input
+              type="text"
+              value={query}
+              onChange={({target: {value}}) => setQuery(value)}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                sendUserQuery(activeChatId, query, selectedModel, selectedTags);
+              }}
+            >
+              Send
+            </button>
 
-        {chatHistory.map(message => {
-          return (
-            <p key={message.id}>
-              {message.role}: {message.content}
-            </p>
-          );
-        })}
+            {chatHistory.map(message => {
+              return (
+                <p key={message.id}>
+                  {message.role}: {message.content}
+                </p>
+              );
+            })}
+          </div>
+        )}
       </article>
     </div>
   );

@@ -61,3 +61,18 @@ export async function getTags() {
 export async function getModelIds() {
   return await window.electronAPI.getModelIds();
 }
+
+// Read openai key and configure openai key
+export async function readOpenAIAPIKey() {
+  return await window.electronAPI.readOpenAIAPIKey();
+}
+
+// Write openai key to file
+export async function writeOpenAIAPIKey(openaiKey: string) {
+  await window.electronAPI.writeOpenAIAPIKey(openaiKey);
+}
+
+// Verify if openai key is valid
+export async function isOpenAIKeyValid(openaiKey: string) {
+  return await window.electronAPI.isOpenAIKeyValid(openaiKey);
+}

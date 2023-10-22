@@ -9,9 +9,12 @@ export enum RoleType {
   Function = 'function',
 }
 
-const openai = new OpenAi({
-  apiKey: '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',
-});
+let openai: OpenAi;
+export function configureOpenAi(openaiKey: string) {
+  openai = new OpenAi({
+    apiKey: openaiKey,
+  });
+}
 
 /**
  * Asynchronously moderates a query using OpenAI's moderation API.
@@ -333,6 +336,17 @@ export async function getCompletionModelResponse(prompt: string, model: string):
   return response.choices[0].text;
 }
 
+/**
+ * Asynchronously gets AI response based on the provided model, chat context, page section context and user message.
+ * If the model includes 'gpt', it uses the chat completion model, otherwise it uses the completion model.
+ *
+ * @param {string} model - The AI model to be used.
+ * @param {string} chatContext - The context of the chat.
+ * @param {string} pageSectionContext - The context of the page section.
+ * @param {Message} userMessage - The user's message.
+ * @returns {Promise} - A promise that resolves to the AI response.
+ * @throws {Error} - Throws an error if the model is not supported.
+ */
 export async function getAiResponse(
   model: string,
   chatContext: string,
@@ -354,8 +368,33 @@ export async function getAiResponse(
   }
 }
 
+/**
+ * Asynchronously retrieves the IDs of all available models from OpenAI.
+ *
+ * @async
+ * @function getModelsIds
+ * @returns {Promise<Array<string>>} A promise that resolves to an array of model IDs.
+ */
 export async function getModelsIds() {
   const models = await openai.models.list();
   const modelIds = models.data.map(model => model.id);
   return modelIds;
+}
+
+/**
+ * Checks if the provided OpenAI key is valid.
+ * @async
+ * @function isOpenAIKeyValid
+ * @param {string} openaiKey - The OpenAI key to validate.
+ * @returns {Promise<boolean>} Returns true if the OpenAI key is valid, otherwise false.
+ * @throws Will throw an error if the OpenAI key is not valid.
+ */
+export async function isOpenAIKeyValid(openaiKey: string) {
+  try {
+    configureOpenAi(openaiKey);
+    await openai.models.list();
+    return true;
+  } catch (error) {
+    return false;
+  }
 }

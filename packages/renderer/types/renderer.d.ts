@@ -8,6 +8,9 @@ export interface IElectronAPI {
   recieveDBNotification: (fn: (args: any) => Promise<void>) => void;
   getTags: () => Promise<Tag[]>;
   getModelIds: () => Promise<string[]>;
+  readOpenAIAPIKey: () => Promise<string>;
+  writeOpenAIAPIKey: (openaiKey: string) => Promise<void>;
+  isOpenAIKeyValid: (openaiKey: string) => Promise<boolean>;
 }
 
 declare global {

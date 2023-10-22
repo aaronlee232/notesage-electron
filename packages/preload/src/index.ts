@@ -42,4 +42,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const modelIds = await ipcRenderer.invoke('get/models');
     return modelIds;
   },
+
+  readOpenAIAPIKey: async () => {
+    const openaiKey = await ipcRenderer.invoke('get/openai-key');
+    return openaiKey;
+  },
+
+  writeOpenAIAPIKey: async (openaiKey: string) => {
+    await ipcRenderer.invoke('write/openai-key', openaiKey);
+  },
+
+  isOpenAIKeyValid: async (openaiKey: string) => {
+    return await ipcRenderer.invoke('verify/openai-key', openaiKey);
+  },
 });
