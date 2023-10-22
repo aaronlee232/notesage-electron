@@ -1,6 +1,8 @@
 import {app, BrowserWindow} from 'electron';
 import {join, resolve} from 'node:path';
 
+export let window: BrowserWindow;
+
 async function createWindow() {
   const browserWindow = new BrowserWindow({
     show: false, // Use the 'ready-to-show' event to show the instantiated BrowserWindow.
@@ -57,9 +59,9 @@ async function createWindow() {
  * Restore an existing BrowserWindow or Create a new BrowserWindow.
  */
 export async function restoreOrCreateWindow() {
-  let window = BrowserWindow.getAllWindows().find(w => !w.isDestroyed());
+  const existingWindows = BrowserWindow.getAllWindows().find(w => !w.isDestroyed());
 
-  if (window === undefined) {
+  if (existingWindows === undefined) {
     window = await createWindow();
   }
 

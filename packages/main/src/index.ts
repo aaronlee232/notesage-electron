@@ -6,10 +6,16 @@ import {ipcMain} from 'electron';
 import {
   create_missing_tables,
   getAllChatMessages,
-  processNoteFiles,
+  getMostRecentChat,
+  getTags,
 } from '../helpers/databaseMethods';
-import {setupNoteSageDirectory, watchNotesDirectoryForChanges} from '../helpers/fileManager';
+import {
+  processNoteFiles,
+  setupNoteSageDirectory,
+  watchNotesDirectoryForChanges,
+} from '../helpers/fileManager';
 import {createChat, sendUserQuery} from '../helpers/chatMethods';
+import {getModelsIds} from '../helpers/openaiMethods';
 
 /**
  * Prevent electron from running multiple instances.
@@ -93,31 +99,55 @@ if (import.meta.env.PROD) {
     .catch(e => console.error('Failed check and install updates:', e));
 }
 
-// Configure Environment Variables
+app
+  .whenReady()
+  .then(() => {
+    // Set up database connection and tables
+    create_missing_tables();
+    setupNoteSageDirectory();
+    processNoteFiles();
+    watchNotesDirectoryForChanges();
+  })
+  .catch(e => console.error('Failed initialization of DB and directory:', e));
 
-// Set up database connection and tables
-create_missing_tables();
-setupNoteSageDirectory();
-processNoteFiles();
-watchNotesDirectoryForChanges();
+app
+  .whenReady()
+  .then(() => {
+    // Handles invoke for responding to userQuery
+    ipcMain.handle('query', async (_event, args) => {
+      const {chatId, userQuery, model, tags} = args;
+      sendUserQuery(chatId, userQuery, model, tags);
+    });
 
-// Handles invoke for responding to userQuery
-ipcMain.handle('query', async (_event, args) => {
-  const {chatId, userQuery, model} = args;
-  sendUserQuery(chatId, userQuery, model);
-});
+    // Handles invoke for creating a new chat
+    ipcMain.handle('create/chat', async (_event, _args) => {
+      const chat = await createChat();
+      return chat;
+    });
 
-// Handles invoke for creating a new chat
-ipcMain.handle('create/chat', async (_event, _args) => {
-  const chatId = await createChat();
-  return chatId;
-});
+    // Handles invoke for retrieving most recent chat id
+    ipcMain.handle('get/most-recent-chat', async (_event, _args) => {
+      const chat = await getMostRecentChat();
+      return chat;
+    });
 
-// Handles invoke for retrieving chat history
-ipcMain.handle('get/chat-messages', async (_event, args) => {
-  const chatId = args;
-  const messages = await getAllChatMessages(chatId);
-  return messages;
-});
+    // Handles invoke for retrieving chat history
+    ipcMain.handle('get/chat-messages', async (_event, args) => {
+      const chatId = args;
+      const messages = await getAllChatMessages(chatId);
+      return messages;
+    });
 
-// TODO: When change detected in messages, Send event from main to renderer with chat history of message chatId attatched
+    // Handles invoke for retrieving tags
+    ipcMain.handle('get/tags', async (_event, _args) => {
+      const tags = await getTags();
+      return tags;
+    });
+
+    // Handles invoke for retrieving openai models
+    ipcMain.handle('get/models', async (_event, _args) => {
+      const modelIds = await getModelsIds();
+      return modelIds;
+    });
+  })
+  .catch(e => console.error('Failed ipcMain functions setup:', e));

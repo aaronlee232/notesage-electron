@@ -1,9 +1,12 @@
 import type {Chat, Message, Page, PageSection, PageTag, Tag} from 'types/main';
-import {getSimilarity, processFilesAndGenerateEmbeddings} from '../helpers/embeddingMethods';
-import {deserializeVector, formatDate} from './utilMethods';
-import {generateChatDescription, generateChatTitle} from '../helpers/openaiMethods';
+import {window} from '/@/mainWindow';
 
 const db = require('better-sqlite3')('./packages/database.db');
+
+// Used after each CRUD operation
+function sendDBNotificationToRenderer(tableName: string) {
+  window.webContents.send('db-notification', tableName);
+}
 
 /**
  * @function errorHandlerWrapper
@@ -206,17 +209,12 @@ export async function removePage(pagePath: string) {
   }
 
   errorHandlerWrapper()(executeQuery);
+  sendDBNotificationToRenderer('page');
 }
 
 /**
  * Asynchronously adds a page to the database.
  * @param {Object} page - The page object to be added.
- * @param {string} page.id - The ID of the page.
- * @param {string} page.pagePath - The path of the page.
- * @param {string} page.checksum - The checksum of the page.
- * @param {Date} page.authoredDate - The date the page was authored.
- * @param {number} page.refreshVersion - The refresh version of the page.
- * @param {Date} page.refreshDate - The date the page was last refreshed.
  */
 export async function addPage(page: Page) {
   const sql = `
@@ -235,6 +233,7 @@ export async function addPage(page: Page) {
   }
 
   errorHandlerWrapper()(executeQuery);
+  sendDBNotificationToRenderer('page');
 }
 
 /**
@@ -243,11 +242,6 @@ export async function addPage(page: Page) {
  * @async
  * @function addPageSection
  * @param {PageSection} pageSection - The page section object to be added.
- * @param {string} pageSection.id - The ID of the page section.
- * @param {string} pageSection.pageId - The ID of the page.
- * @param {string} pageSection.content - The content of the page section.
- * @param {string} pageSection.embedding - The embedding of the page section.
- * @param {number} pageSection.tokenCount - The token count of the page section.
  */
 export async function addPageSection(pageSection: PageSection) {
   const sql = `
@@ -265,6 +259,7 @@ export async function addPageSection(pageSection: PageSection) {
   }
 
   errorHandlerWrapper()(executeQuery);
+  sendDBNotificationToRenderer('page_section');
 }
 
 /**
@@ -273,8 +268,6 @@ export async function addPageSection(pageSection: PageSection) {
  * @async
  * @function addTag
  * @param {Tag} tag - The tag object to be added.
- * @param {string} tag.id - The ID of the tag.
- * @param {string} tag.name - The name of the tag.
  */
 export async function addTag(tag: Tag) {
   const sql = `
@@ -286,6 +279,7 @@ export async function addTag(tag: Tag) {
   }
 
   errorHandlerWrapper()(executeQuery);
+  sendDBNotificationToRenderer('tag');
 }
 
 /**
@@ -294,9 +288,6 @@ export async function addTag(tag: Tag) {
  * @async
  * @function addPageTag
  * @param {PageTag} pageTag - The page tag object to be added.
- * @param {string} pageTag.id - The ID of the page tag.
- * @param {string} pageTag.pageId - The ID of the page.
- * @param {string} pageTag.tagId - The ID of the tag.
  */
 export async function addPageTag(pageTag: PageTag) {
   const sql = `
@@ -308,63 +299,7 @@ export async function addPageTag(pageTag: PageTag) {
   }
 
   errorHandlerWrapper()(executeQuery);
-}
-
-/**
- * Asynchronously updates notes in the database. It processes files and generates embeddings, checks if pages exist and if they are modified.
- * If a page is modified, it removes the old version and adds the new data to the database. It also adds new page sections, tags, and page tags.
- * It keeps track of unchanged and changed pages and logs the counts along with the modified pages.
- * @export
- * @async
- * @function processNoteFiles
- * @throws {Error} If there is an error in processing files, generating embeddings, or updating the database.
- */
-export async function processNoteFiles() {
-  let unchangedCount = 0;
-  let changedCount = 0;
-  const modifiedPages: any[] = [];
-
-  const allPageData = await processFilesAndGenerateEmbeddings();
-  for (const pageData of allPageData) {
-    const {pagePath, checksum} = pageData.page;
-
-    // Skip if page exists and is not modified
-    const pageExists = await doesPageExist(pagePath);
-    if (pageExists) {
-      unchangedCount += 1;
-      continue;
-    }
-
-    // Remove the old version of the page if it exists
-    const pageModified = await isPageModified(pagePath, checksum);
-    if (pageModified) {
-      await removePage(pagePath);
-    }
-
-    // Add new page data to db
-    await addPage(pageData.page);
-
-    for (const pageSection of pageData.pageSections) {
-      await addPageSection(pageSection);
-    }
-
-    for (const tag of pageData.tags) {
-      await addTag(tag);
-    }
-
-    for (const pageTag of pageData.pageTags) {
-      await addPageTag(pageTag);
-    }
-
-    changedCount += 1;
-    modifiedPages.push(pageData);
-  }
-
-  console.log({
-    unchangedCount,
-    changedCount,
-    modifiedPages,
-  });
+  sendDBNotificationToRenderer('page_tag');
 }
 
 // ====================================================================================================
@@ -388,6 +323,7 @@ export async function addChat(chat: Chat) {
   }
 
   errorHandlerWrapper()(executeQuery);
+  sendDBNotificationToRenderer('chat');
 }
 
 /**
@@ -436,6 +372,7 @@ export async function addMessage(message: Message) {
   }
 
   errorHandlerWrapper()(executeQuery);
+  sendDBNotificationToRenderer('message');
 }
 
 /**
@@ -457,52 +394,19 @@ export async function updateChatInDB(chatDetails: Chat) {
   }
 
   errorHandlerWrapper()(executeQuery);
-}
-
-/**
- * Asynchronously updates chat details in the database.
- *
- * @async
- * @function updateChatDetails
- * @param {string} chatId - The ID of the chat to update.
- * @param {string} aiMessageContent - The content of the AI's message.
- * @param {string} userMessageContent - The content of the user's message.
- * @returns {Promise<void>} - A Promise that resolves when the chat details have been updated in the database.
- * @throws {Error} If an error occurs while updating the chat details.
- */
-export async function updateChatDetails(
-  chatId: string,
-  aiMessageContent: string,
-  userMessageContent: string,
-) {
-  // 1. Generate chat title
-  const chatTitle = await generateChatTitle(aiMessageContent, userMessageContent);
-
-  // 2. Generate chat description
-  const chatDescription = await generateChatDescription(aiMessageContent, userMessageContent);
-
-  // Construct ChatDetails Object
-  const chatDetails: Chat = {
-    id: chatId,
-    title: chatTitle,
-    description: chatDescription,
-    creationDate: formatDate(new Date()),
-  };
-
-  // 3. Update chat details
-  await updateChatInDB(chatDetails);
+  sendDBNotificationToRenderer('chat');
 }
 
 /**
  * Fetches all page sections from the database.
- * @async
  * @function getAllPageSections
- * @returns {Promise<PageSection[]>} - An array of all page sections.
+ * @returns {PageSection[]} - An array of all page sections.
  */
-export async function getAllPageSections() {
+function getAllPageSections() {
   const sql = `
-    SELECT *
-    FROM page_section;`;
+    SELECT ps.*
+    FROM page_section ps
+    ;`;
 
   function executeQuery() {
     return db.prepare(sql).all();
@@ -513,46 +417,44 @@ export async function getAllPageSections() {
 }
 
 /**
- * Fetches page sections and sorts them by relevance to the user's embedding.
- * Selects only a certain number of page sections that meet a similarity threshold and combines their contents.
- * @async
- * @function getPageSectionContext
- * @param {Buffer} serializedUserEmbedding - The serialized user embedding.
- * @returns {Promise<string>} - The combined contents of the selected page sections.
+ * Fetches all page sections from the database that match the provided tags.
+ * @function getFilteredPageSections
+ * @param {Tag[]} tags - An array of tags to filter the page sections.
+ * @returns {PageSection[]} - An array of page sections that match the provided tags.
  */
-export async function getPageSectionContext(serializedUserEmbedding: Buffer) {
-  const userEmbedding = deserializeVector(serializedUserEmbedding);
+function getFilteredPageSections(tags: Tag[]) {
+  const placeholders = tags.map(() => '?').join(',');
 
-  function sortByRelevance(a: PageSection, b: PageSection) {
-    const aEmbedding = deserializeVector(a.embedding);
-    const bEmbedding = deserializeVector(b.embedding);
+  const sql = `
+    SELECT ps.*
+    FROM page_section ps
+    JOIN page_tag pt ON ps.page_id = pt.page_id
+    WHERE pt.tag_id IN (${placeholders})
+    ;`;
 
-    const aSimilarity = getSimilarity(aEmbedding, userEmbedding);
-    const bSimilarity = getSimilarity(bEmbedding, userEmbedding);
-
-    return bSimilarity - aSimilarity;
+  function executeQuery() {
+    return db.prepare(sql).all(tags.map(tag => tag.id));
   }
 
-  // Sorts by highest similarity score
-  const pageSections = await getAllPageSections();
-  pageSections.sort(sortByRelevance);
+  const res = errorHandlerWrapper()(executeQuery);
+  return res as PageSection[];
+}
 
-  // Select only MATCH_COUNT number of page sections that meet SIMILARITY_THRESHOLD and combine their contents
-  const MATCH_COUNT = 10;
-  const SIMILARITY_THRESHOLD = 0.3;
-  const context = [];
-
-  for (const pageSection of pageSections) {
-    const similarity = getSimilarity(deserializeVector(pageSection.embedding), userEmbedding);
-
-    if (similarity > SIMILARITY_THRESHOLD && context.length < MATCH_COUNT) {
-      context.push(pageSection.content);
-    } else {
-      break;
-    }
+/**
+ * Fetches page sections based on the provided tags. If no tags are provided, all page sections are returned.
+ * @function getPageSections
+ * @param {Tag[]} tags - An array of tags to filter the page sections.
+ * @returns {Promise<PageSection[]>} - A promise that resolves to an array of page sections that match the provided tags, or all page sections if no tags are provided.
+ */
+export async function getPageSections(tags: Tag[]) {
+  console.log(tags);
+  if (tags.length > 0) {
+    console.log('filtered page sections context');
+    return getFilteredPageSections(tags);
+  } else {
+    console.log('no filter page sections context');
+    return getAllPageSections();
   }
-
-  return context.join('\n---\n');
 }
 
 /**
@@ -579,65 +481,6 @@ export async function getAllChatMessages(chatId: string) {
 }
 
 /**
- * Asynchronously gets the chat context based on the chatId and serializedUserEmbedding.
- * The function selects a certain number of recent messages and a certain number of messages that are relevant to the userEmbedding.
- *
- * @async
- * @export
- * @function
- * @param {string} chatId - The ID of the chat.
- * @param {Buffer} serializedUserEmbedding - The serialized user embedding.
- * @returns {Promise<string>} The chat context, joined by '\n---\n'.
- *
- * @throws Will throw an error if the chatId or serializedUserEmbedding is not provided.
- */
-export async function getChatContext(chatId: string, serializedUserEmbedding: Buffer) {
-  const userEmbedding = deserializeVector(serializedUserEmbedding);
-
-  function sortByRelevance(a: Message, b: Message) {
-    const aEmbedding = deserializeVector(a.embedding);
-    const bEmbedding = deserializeVector(b.embedding);
-
-    const aSimilarity = getSimilarity(aEmbedding, userEmbedding);
-    const bSimilarity = getSimilarity(bEmbedding, userEmbedding);
-
-    return bSimilarity - aSimilarity;
-  }
-
-  function messageContentWithRole(message: Message) {
-    return `${message.role}: ${message.content}`;
-  }
-
-  const messages = await getAllChatMessages(chatId);
-
-  // MATCH_COUNT number of messages that meet SIMILARITY_THRESHOLD and combine their contents
-  const RECENT_COUNT = 10;
-  const MATCH_COUNT = 10;
-  const SIMILARITY_THRESHOLD = 0.3;
-  const context = [];
-
-  // Select the RECENT_COUNT number of messages
-  context.push(...messages.slice(0, RECENT_COUNT).map(message => messageContentWithRole(message)));
-  // skipping the current user query
-  context.pop();
-
-  const similarMessages = messages.slice(RECENT_COUNT);
-  similarMessages.sort(sortByRelevance);
-
-  for (const message of similarMessages) {
-    const similarity = getSimilarity(deserializeVector(message.embedding), userEmbedding);
-
-    if (similarity > SIMILARITY_THRESHOLD && context.length < MATCH_COUNT) {
-      context.push(messageContentWithRole(message));
-    } else {
-      break;
-    }
-  }
-
-  return context.join('\n---\n');
-}
-
-/**
  * Updates the embedding of a specific message in the database.
  *
  * @async
@@ -658,4 +501,40 @@ export async function updateMessageEmbedding(messageId: string, embedding: Buffe
   }
 
   errorHandlerWrapper()(executeQuery);
+  sendDBNotificationToRenderer('message');
+}
+
+/**
+ * Asynchronously fetches the most recent chat from the database.
+ *
+ * @async
+ * @function getMostRecentChat
+ * @returns {Promise<Chat>} The most recent chat.
+ * @throws {Error} If there is an error executing the query.
+ */
+export async function getMostRecentChat() {
+  const sql = `
+    SELECT *
+    FROM chat
+    ORDER BY created_at ASC
+    LIMIT 1;`;
+
+  function executeQuery() {
+    return db.prepare(sql).get();
+  }
+
+  const res = errorHandlerWrapper()(executeQuery);
+  return res as Chat;
+}
+export async function getTags() {
+  const sql = `
+    SELECT *
+    FROM tag;`;
+
+  function executeQuery() {
+    return db.prepare(sql).all();
+  }
+
+  const res = errorHandlerWrapper()(executeQuery);
+  return res as Tag[];
 }

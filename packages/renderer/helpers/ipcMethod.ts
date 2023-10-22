@@ -1,5 +1,7 @@
 // export const getQueryResponse = window.electronAPI.getQueryResponse;
 
+import type {Tag} from '../types/renderer';
+
 // export async function getQueryResponse(sql: string) {
 //   return await window.electronAPI.getQueryResponse(sql);
 // }
@@ -26,8 +28,8 @@
 // export async function checkAndUpdateNotes() {}
 
 // Handles the creation of a user message and ai response based on given user query and model
-export async function sendUserQuery(chatId: string, userQuery: string, model: string) {
-  await window.electronAPI.sendUserQuery(chatId, userQuery, model);
+export async function sendUserQuery(chatId: string, userQuery: string, model: string, tags: Tag[]) {
+  await window.electronAPI.sendUserQuery(chatId, userQuery, model, tags);
 }
 
 // Creates new chat and returns chatId
@@ -35,6 +37,27 @@ export async function createNewChat() {
   return await window.electronAPI.createNewChat();
 }
 
+// Get all messages of chat with chatId
 export async function getChatMessages(chatId: string) {
   return await window.electronAPI.getChatMessages(chatId);
+}
+
+// Get most recent chat
+export async function getMostRecentChat() {
+  return await window.electronAPI.getMostRecentChat();
+}
+
+// Listen for changes in db tables and call fn to handle them
+export function listenToDBNotification(fn: (tableName: string) => Promise<void>) {
+  window.electronAPI.recieveDBNotification(fn);
+}
+
+// Get all tags in db
+export async function getTags() {
+  return await window.electronAPI.getTags();
+}
+
+// Get openai model ids
+export async function getModelIds() {
+  return await window.electronAPI.getModelIds();
 }

@@ -2,7 +2,16 @@ import {readdir} from 'node:fs/promises';
 import {app} from 'electron';
 import {formatDate} from './utilMethods';
 import type {FileObject, NotesMetaData, ParsedFile} from 'types/main';
-import {processNoteFiles} from './databaseMethods';
+import {processFilesAndGenerateEmbeddings} from './embeddingMethods';
+import {
+  addPage,
+  addPageSection,
+  addPageTag,
+  addTag,
+  doesPageExist,
+  isPageModified,
+  removePage,
+} from './databaseMethods';
 
 const matter = require('gray-matter');
 const fs = require('fs');
@@ -150,6 +159,63 @@ export async function getAllNoteFileObjects(): Promise<FileObject[]> {
   }
 
   return fileObjects;
+}
+
+/**
+ * Asynchronously updates notes in the database. It processes files and generates embeddings, checks if pages exist and if they are modified.
+ * If a page is modified, it removes the old version and adds the new data to the database. It also adds new page sections, tags, and page tags.
+ * It keeps track of unchanged and changed pages and logs the counts along with the modified pages.
+ * @export
+ * @async
+ * @function processNoteFiles
+ * @throws {Error} If there is an error in processing files, generating embeddings, or updating the database.
+ */
+export async function processNoteFiles() {
+  let unchangedCount = 0;
+  let changedCount = 0;
+  const modifiedPages: any[] = [];
+
+  const allPageData = await processFilesAndGenerateEmbeddings();
+  for (const pageData of allPageData) {
+    const {pagePath, checksum} = pageData.page;
+
+    // Skip if page exists and is not modified
+    const pageExists = await doesPageExist(pagePath);
+    if (pageExists) {
+      unchangedCount += 1;
+      continue;
+    }
+
+    // Remove the old version of the page if it exists
+    const pageModified = await isPageModified(pagePath, checksum);
+    if (pageModified) {
+      await removePage(pagePath);
+    }
+
+    // Add new page data to db
+    await addPage(pageData.page);
+
+    for (const pageSection of pageData.pageSections) {
+      await addPageSection(pageSection);
+    }
+
+    for (const tag of pageData.tags) {
+      await addTag(tag);
+    }
+
+    for (const pageTag of pageData.pageTags) {
+      await addPageTag(pageTag);
+    }
+
+    changedCount += 1;
+    modifiedPages.push(pageData);
+  }
+
+  console.log({
+    unchangedCount,
+    changedCount,
+    modifiedPages,
+  });
 }
 
 /**

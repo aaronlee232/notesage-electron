@@ -7,20 +7,21 @@
 // preload with contextIsolation enabled
 
 import {contextBridge, ipcRenderer} from 'electron';
+import type {Tag} from '../../../types/shared';
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  // getQueryResponse: async (sql: string) => {
-  //   const response = await ipcRenderer.invoke('run/sql', sql);
-  //   return response;
-  // },
-
-  sendUserQuery: async (chatId: string, userQuery: string, model: string) => {
-    ipcRenderer.invoke('query', {chatId, userQuery, model});
+  sendUserQuery: async (chatId: string, userQuery: string, model: string, tags: Tag[]) => {
+    ipcRenderer.invoke('query', {chatId, userQuery, model, tags});
   },
 
   createNewChat: async () => {
-    const chatId = await ipcRenderer.invoke('create/chat');
-    return chatId;
+    const chat = await ipcRenderer.invoke('create/chat');
+    return chat;
+  },
+
+  getMostRecentChat: async () => {
+    const chat = await ipcRenderer.invoke('get/most-recent-chat');
+    return chat;
   },
 
   getChatMessages: async (chatId: string) => {
@@ -28,17 +29,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return messages;
   },
 
-  // rendererToMain: (message: string) => ipcRenderer.send('greet', message),
-  // rendererToMainToRenderer: () => ipcRenderer.invoke('main-text'),
-  // mainToRenderer: () => ipcRenderer.invoke('main-text'),
+  recieveDBNotification: (fn: (args: any) => Promise<void>) => {
+    ipcRenderer.on('db-notification', (_event, args) => fn(args));
+  },
 
-  // send: async (message: string) => {
-  //   console.log(`preload send message: ${message}`);
-  //   return new Promise(resolve => {
-  //     ipcRenderer.once('asynchronous-reply', (_, arg) => {
-  //       resolve(arg);
-  //     });
-  //     ipcRenderer.send('asynchronous-message', message);
-  //   });
-  // },
+  getTags: async () => {
+    const tags = await ipcRenderer.invoke('get/tags');
+    return tags;
+  },
+
+  getModelIds: async () => {
+    const modelIds = await ipcRenderer.invoke('get/models');
+    return modelIds;
+  },
 });

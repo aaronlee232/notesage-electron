@@ -353,3 +353,9 @@ export async function getAiResponse(
     return await getCompletionModelResponse(prompt, model);
   }
 }
+
+export async function getModelsIds() {
+  const models = await openai.models.list();
+  const modelIds = models.data.map(model => model.id);
+  return modelIds;
+}

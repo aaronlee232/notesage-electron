@@ -1,10 +1,13 @@
 import {Tag, Message, Chat} from '../../../types/shared';
 
 export interface IElectronAPI {
-  // getQueryResponse: (sql: string) => Promise<any>;
-  sendUserQuery: (chatId: string, userQuery: string, model: string) => Promise<void>;
-  createNewChat: () => Promise<string>;
+  sendUserQuery: (chatId: string, userQuery: string, model: string, tags: Tag[]) => Promise<void>;
+  createNewChat: () => Promise<Chat>;
+  getMostRecentChat: () => Promise<Chat>;
   getChatMessages: (chatId: string) => Promise<Message[]>;
+  recieveDBNotification: (fn: (args: any) => Promise<void>) => void;
+  getTags: () => Promise<Tag[]>;
+  getModelIds: () => Promise<string[]>;
 }
 
 declare global {

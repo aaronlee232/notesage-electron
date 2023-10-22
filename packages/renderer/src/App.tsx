@@ -1,32 +1,115 @@
-import React, {useState} from 'react';
-import {createNewChat, getChatMessages, sendUserQuery} from '../helpers/ipcMethod';
-import type {Message} from '../types/renderer';
+import React, {useEffect, useState} from 'react';
+import {
+  createNewChat,
+  getChatMessages,
+  getModelIds,
+  getMostRecentChat,
+  getTags,
+  listenToDBNotification,
+  sendUserQuery,
+} from '../helpers/ipcMethod';
+import type {Message, Tag} from '../types/renderer';
 
 //sample code for testing
 const App = () => {
   const [activeChatId, setActiveChatId] = useState<string>('');
   const [query, setQuery] = useState('');
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
   const [chatHistory, setChatHistory] = useState<Message[]>([]);
+  const [ModelIds, setModelIds] = useState<string[]>([]);
+  const [selectedModel, setSelectedModel] = useState<string>('gpt-3.5-turbo');
 
-  const model = 'gpt-3.5-turbo';
+  useEffect(() => {
+    (async () => {
+      setModelIds(await getModelIds());
+    })();
+  }, []);
+
+  async function handleDBChanges(tableName: string) {
+    if (tableName == 'message') {
+      const messages = await getChatMessages(activeChatId);
+      setChatHistory(messages);
+    }
+    if (tableName == 'tag') {
+      // Refresh tag list
+    }
+    if (tableName == 'chat') {
+      // Refresh chat list
+    }
+  }
+
+  useEffect(() => {
+    (async () => {
+      let chat = await getMostRecentChat();
+      if (chat == undefined) {
+        chat = await createNewChat();
+      }
+      await setActiveChatId(chat.id);
+
+      await setTags(await getTags());
+    })();
+  }, []);
+
+  // Update db change handler whenever activeChatId changes
+  useEffect(() => {
+    listenToDBNotification(handleDBChanges);
+  }, [activeChatId]);
 
   return (
     <div className="App">
       <header className="App-header">
-        <h1>Standalone application with Electron, React, and SQLite stack.</h1>
+        <h1>NoteSage AI</h1>
       </header>
       <article>
         <button
           type="button"
           onClick={async () => {
-            const chatId = await createNewChat();
-            setActiveChatId(chatId);
+            const chat = await createNewChat();
+            setActiveChatId(chat.id);
           }}
         >
           Create new Chat
         </button>
         <p>{activeChatId}</p>
         <br />
+
+        <p>Tags</p>
+        {tags &&
+          tags.map(tag => {
+            return (
+              <button
+                key={tag.id}
+                onClick={() => {
+                  setSelectedTags([...selectedTags, tag]);
+                }}
+              >
+                {tag.name}
+              </button>
+            );
+          })}
+        <br />
+
+        <p>Selected Tags</p>
+        {selectedTags && selectedTags.map(tag => <p>{tag.name}</p>)}
+        <br />
+
+        <p>Select Model</p>
+        <p>Selected Model: {selectedModel}</p>
+        {ModelIds &&
+          ModelIds.map(modelId => {
+            return (
+              <button
+                key={modelId}
+                onClick={() => {
+                  setSelectedModel(modelId);
+                }}
+              >
+                {modelId}
+              </button>
+            );
+          })}
+
         <p>Send a query to NoteSage AI</p>
         <input
           type="text"
@@ -35,17 +118,11 @@ const App = () => {
         />
         <button
           type="button"
-          onClick={() => sendUserQuery(activeChatId, query, model)}
-        >
-          Send
-        </button>
-        <button
-          type="button"
-          onClick={async () => {
-            setChatHistory(await getChatMessages(activeChatId));
+          onClick={() => {
+            sendUserQuery(activeChatId, query, selectedModel, selectedTags);
           }}
         >
-          View Chat History
+          Send
         </button>
 
         {chatHistory.map(message => {
